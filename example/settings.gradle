@@ -1,7 +1,10 @@
 rootProject.name = "example"
-include ':app'
+include ':app', ':flutter_knife'
+project(':flutter_knife').projectDir = new File("../", "flutter_knife")
+
 setBinding(new Binding([gradle: this]))
 evaluate(new File(
   settingsDir,
   'flutter_module/.android/include_flutter.groovy'
 ))
+
