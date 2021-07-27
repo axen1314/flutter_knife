@@ -49,9 +49,9 @@ public class FlutterKnife {
      * 实现了{@link LifecycleOwner}接口并实现其生命周期回调
      *
      * @param activity FlutterView所在的上下文环境
-     * @param callback {@link FlutterKnifeEngineCallback}实例，回调创建的FlutterEngine实例
+     * @param callback {@link EngineCallback}实例，回调创建的FlutterEngine实例
      */
-    public void bind(@NonNull Activity activity, @Nullable FlutterKnifeEngineCallback callback) {
+    public void bind(@NonNull Activity activity, @Nullable EngineCallback callback) {
         try {
             Class<? extends Activity> clazz = activity.getClass();
             Field[] fields = clazz.getDeclaredFields();
@@ -91,12 +91,12 @@ public class FlutterKnife {
      * @param activity FlutterView所在的上下文环境
      * @param view 需要绑定FlutterEngine的FlutterView
      * @param code {@link ExecuteDartCode}注解实例，包含了Dart入口代码的相关信息
-     * @param callback {@link FlutterKnifeEngineCallback}实例，回调创建的FlutterEngine实例
+     * @param callback {@link EngineCallback}实例，回调创建的FlutterEngine实例
      */
     private void executeDartCode(@NonNull Activity activity,
                                  @NonNull FlutterView view,
                                  @NonNull ExecuteDartCode code,
-                                 @Nullable FlutterKnifeEngineCallback callback) {
+                                 @Nullable EngineCallback callback) {
         String engineId = code.engineId();
         FlutterEngineCache cache = FlutterEngineCache.getInstance();
         // 如果有engineId，则直接使用缓存的FlutterEngine实例，
@@ -158,7 +158,7 @@ public class FlutterKnife {
         private static final FlutterKnife INSTANCE = new FlutterKnife();
     }
 
-    public interface FlutterKnifeEngineCallback {
+    public interface EngineCallback {
         void onEngineCreate(FlutterView view, FlutterEngine engine);
     }
 }
