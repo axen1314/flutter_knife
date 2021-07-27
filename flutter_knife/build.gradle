@@ -4,10 +4,21 @@ plugins {
 }
 
 repositories {
+    mavenCentral()
+    google()
+    jcenter()
+    maven { url "http://download.flutter.io" }
+    maven { url "https://jitpack.io" }
+}
+
+repositories {
     flatDir {
         dirs 'libs'
     }
 }
+
+group = 'com.github.axen1314'
+version = 'v1.0.0'
 
 android {
     compileSdkVersion 30
@@ -41,4 +52,18 @@ dependencies {
     androidTestImplementation 'androidx.test.ext:junit:1.1.3'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'
     compileOnly 'io.flutter:flutter_embedding_release:1.0.0-b09f014e9658da6647361e7e416d1a159d34192d'
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            // Creates a Maven publication called "release".
+            release(MavenPublication) {
+                from components.release
+                groupId = 'com.github.axen1314'
+                artifactId = 'flutter_knife'
+                version = 'v1.0.0'
+            }
+        }
+    }
 }
