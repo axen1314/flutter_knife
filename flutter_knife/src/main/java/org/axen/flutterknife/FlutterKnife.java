@@ -12,7 +12,6 @@ import org.axen.flutterknife.adapter.BindFlutterViewAdapter;
 import org.axen.flutterknife.adapter.CreateFlutterViewAdapter;
 import org.axen.flutterknife.adapter.IAnnotationToFlutterViewAdapter;
 import org.axen.flutterknife.annotation.ExecuteDartCode;
-import org.axen.flutterknife.flutter.FlutterExecutor;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -21,10 +20,12 @@ import java.util.List;
 import io.flutter.embedding.android.FlutterView;
 import io.flutter.embedding.engine.FlutterEngine;
 import io.flutter.embedding.engine.FlutterEngineCache;
+import io.flutter.embedding.engine.FlutterEngineGroup;
+import io.flutter.embedding.engine.dart.DartExecutor;
 
 public class FlutterKnife {
     private final List<IAnnotationToFlutterViewAdapter> annotationAdapterList;
-    private FlutterExecutor flutterExecutor;
+    private FlutterEngineGroup engineGroup;
 
     private FlutterKnife() {
         annotationAdapterList = new ArrayList<>();
@@ -98,60 +99,28 @@ public class FlutterKnife {
                                  @NonNull ExecuteDartCode code,
                                  @Nullable EngineCallback callback) {
         String engineId = code.engineId();
-        FlutterEngineCache cache = FlutterEngineCache.getInstance();
         // 如果有engineId，则直接使用缓存的FlutterEngine实例，
         // 否则实例化一个新的FlutterEngine实例
-        final FlutterEngine engine = engineId.isEmpty() || !cache.contains(engineId)
-                ? new FlutterEngine(activity) : cache.get(engineId);
+        FlutterEngine engine;
+        if (engineId.isEmpty() || !FlutterEngineCache.getInstance().contains(engineId)) {
+            if (engineGroup == null) engineGroup =
+                    new FlutterEngineGroup(activity.getApplicationContext());
+            String library = code.library();
+            DartExecutor.DartEntrypoint entrypoint = library.isEmpty()
+                    ? new DartExecutor.DartEntrypoint(code.pathToBundle(), code.entrypoint())
+                    : new DartExecutor.DartEntrypoint(code.pathToBundle(), library, code.entrypoint());
+            engine = engineGroup.createAndRunEngine(activity, entrypoint);
+        } else {
+            engine = FlutterEngineCache.getInstance().get(engineId);
+        }
         if (engine != null) {
             view.attachToFlutterEngine(engine);
             // FlutterEngine实例创建回调
             if (callback != null) callback.onEngineCreate(view, engine);
-            if (flutterExecutor == null) flutterExecutor = new FlutterExecutor();
             // 注册生命周期监听函数
             Lifecycle lifecycle = ((LifecycleOwner)activity).getLifecycle();
-            lifecycle.addObserver(new DefaultLifecycleObserver() {
-                @Override
-                public void onCreate(@NonNull LifecycleOwner owner) {}
-
-                @Override
-                public void onStart(@NonNull LifecycleOwner owner) {
-                    // 开始执行Dart代码
-                    if (!engine.getDartExecutor().isExecutingDart()){
-                        flutterExecutor
-                                .pathToBundle(code.pathToBundle())
-                                .initialRoute(code.initialRoute())
-                                .library(code.library())
-                                .entrypoint(code.entrypoint())
-                                .execute(engine);
-                    }
-                }
-
-                @Override
-                public void onResume(@NonNull LifecycleOwner owner) {
-                    engine.getLifecycleChannel().appIsResumed();
-                }
-
-                @Override
-                public void onPause(@NonNull LifecycleOwner owner) {
-                    engine.getLifecycleChannel().appIsInactive();
-                }
-
-                @Override
-                public void onStop(@NonNull LifecycleOwner owner) {
-                    engine.getLifecycleChannel().appIsPaused();
-                }
-
-                @Override
-                public void onDestroy(@NonNull LifecycleOwner owner) {
-                    // 释放资源
-                    view.detachFromFlutterEngine();
-                    engine.getLifecycleChannel().appIsDetached();
-                    lifecycle.removeObserver(this);
-                }
-            });
+            lifecycle.addObserver(new LifecycleObserver(engine, view));
         }
-
     }
 
     private static final class Holder {
@@ -160,5 +129,43 @@ public class FlutterKnife {
 
     public interface EngineCallback {
         void onEngineCreate(FlutterView view, FlutterEngine engine);
+    }
+
+    private static final class LifecycleObserver implements DefaultLifecycleObserver {
+        private final FlutterEngine engine;
+        private final FlutterView view;
+
+        private LifecycleObserver(FlutterEngine engine, FlutterView view) {
+            this.engine = engine;
+            this.view = view;
+        }
+
+        @Override
+        public void onCreate(@NonNull LifecycleOwner owner) {}
+
+        @Override
+        public void onStart(@NonNull LifecycleOwner owner) {}
+
+        @Override
+        public void onResume(@NonNull LifecycleOwner owner) {
+            engine.getLifecycleChannel().appIsResumed();
+        }
+
+        @Override
+        public void onPause(@NonNull LifecycleOwner owner) {
+            engine.getLifecycleChannel().appIsInactive();
+        }
+
+        @Override
+        public void onStop(@NonNull LifecycleOwner owner) {
+            engine.getLifecycleChannel().appIsPaused();
+        }
+
+        @Override
+        public void onDestroy(@NonNull LifecycleOwner owner) {
+            // 释放资源
+            engine.getLifecycleChannel().appIsDetached();
+            view.detachFromFlutterEngine();
+        }
     }
 }
