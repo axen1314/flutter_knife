@@ -102,6 +102,7 @@ public class FlutterKnife {
         // 如果有engineId，则直接使用缓存的FlutterEngine实例，
         // 否则实例化一个新的FlutterEngine实例
         FlutterEngine engine;
+        boolean shouldDestroyEngine = false;
         if (engineId.isEmpty() || !FlutterEngineCache.getInstance().contains(engineId)) {
             if (engineGroup == null) engineGroup =
                     new FlutterEngineGroup(activity.getApplicationContext());
@@ -110,6 +111,7 @@ public class FlutterKnife {
                     ? new DartExecutor.DartEntrypoint(code.pathToBundle(), code.entrypoint())
                     : new DartExecutor.DartEntrypoint(code.pathToBundle(), library, code.entrypoint());
             engine = engineGroup.createAndRunEngine(activity, entrypoint);
+            shouldDestroyEngine = true;
         } else {
             engine = FlutterEngineCache.getInstance().get(engineId);
         }
@@ -119,7 +121,7 @@ public class FlutterKnife {
             if (callback != null) callback.onEngineCreate(view, engine);
             // 注册生命周期监听函数
             Lifecycle lifecycle = ((LifecycleOwner)activity).getLifecycle();
-            lifecycle.addObserver(new LifecycleObserver(engine, view));
+            lifecycle.addObserver(new LifecycleObserver(engine, view, shouldDestroyEngine));
         }
     }
 
@@ -134,8 +136,10 @@ public class FlutterKnife {
     private static final class LifecycleObserver implements DefaultLifecycleObserver {
         private final FlutterEngine engine;
         private final FlutterView view;
+        private final boolean shouldDestroyEngine;
 
-        private LifecycleObserver(FlutterEngine engine, FlutterView view) {
+        private LifecycleObserver(FlutterEngine engine, FlutterView view, boolean shouldDestroyEngine) {
+            this.shouldDestroyEngine = shouldDestroyEngine;
             this.engine = engine;
             this.view = view;
         }
@@ -166,6 +170,7 @@ public class FlutterKnife {
             // 释放资源
             engine.getLifecycleChannel().appIsDetached();
             view.detachFromFlutterEngine();
+            if (shouldDestroyEngine) engine.destroy();
         }
     }
 }
