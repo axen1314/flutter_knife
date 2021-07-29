@@ -1,22 +1,25 @@
 package org.axen.flutterknife;
 
 import android.app.Activity;
+import android.content.Context;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.VisibleForTesting;
 import androidx.lifecycle.DefaultLifecycleObserver;
 import androidx.lifecycle.Lifecycle;
 import androidx.lifecycle.LifecycleOwner;
 
-import org.axen.flutterknife.adapter.BindFlutterViewAdapter;
-import org.axen.flutterknife.adapter.CreateFlutterViewAdapter;
-import org.axen.flutterknife.adapter.IAnnotationToFlutterViewAdapter;
+import org.axen.flutterknife.plugin.BindFlutterViewAnnotationPlugin;
+import org.axen.flutterknife.plugin.CreateFlutterViewAnnotationPlugin;
+import org.axen.flutterknife.plugin.ViewAnnotationPlugin;
 import org.axen.flutterknife.annotation.ExecuteDartCode;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 
+import io.flutter.FlutterInjector;
 import io.flutter.embedding.android.FlutterView;
 import io.flutter.embedding.engine.FlutterEngine;
 import io.flutter.embedding.engine.FlutterEngineCache;
@@ -24,13 +27,13 @@ import io.flutter.embedding.engine.FlutterEngineGroup;
 import io.flutter.embedding.engine.dart.DartExecutor;
 
 public class FlutterKnife {
-    private final List<IAnnotationToFlutterViewAdapter> annotationAdapterList;
+    private final List<ViewAnnotationPlugin> viewAnnotationPluginList;
     private FlutterEngineGroup engineGroup;
 
     private FlutterKnife() {
-        annotationAdapterList = new ArrayList<>();
-        annotationAdapterList.add(new BindFlutterViewAdapter());// BindFlutterView
-        annotationAdapterList.add(new CreateFlutterViewAdapter());// CreateFlutterView
+        viewAnnotationPluginList = new ArrayList<>();
+        viewAnnotationPluginList.add(new BindFlutterViewAnnotationPlugin());// BindFlutterView
+        viewAnnotationPluginList.add(new CreateFlutterViewAnnotationPlugin());// CreateFlutterView
     }
 
     public static FlutterKnife getInstance() { return Holder.INSTANCE; }
@@ -57,28 +60,45 @@ public class FlutterKnife {
             Class<? extends Activity> clazz = activity.getClass();
             Field[] fields = clazz.getDeclaredFields();
             for(Field field : fields) {
-                Class<?> fieldClass = field.getType();
-                if (FlutterView.class.isAssignableFrom(fieldClass)) {
-                    field.setAccessible(true);
-                    FlutterView view = (FlutterView) field.get(activity);
-                    if (view == null) {
-                        // 根据BindFlutterView或CreateFlutterView注解信息创建FlutterView
-                        for(IAnnotationToFlutterViewAdapter adapter : annotationAdapterList) {
-                            view = adapter.convert(activity, field);
-                            if (view != null) {
-                                field.set(activity, view);
-                                break;
-                            }
-                        }
-                    }
-                    if (view != null) {// 根据ExecuteDartCode注解信息实例化FlutterEngine并执行Dart代码
-                        ExecuteDartCode code = field.getAnnotation(ExecuteDartCode.class);
-                        if (code != null) executeDartCode(activity, view, code, callback);
-                    }
+                FlutterView view = bindView(activity, field);
+                if (view != null) {// 根据ExecuteDartCode注解信息实例化FlutterEngine并执行Dart代码
+                    ExecuteDartCode code = field.getAnnotation(ExecuteDartCode.class);
+                    if (code != null) executeDartCode(activity, view, code, callback);
                 }
 
             }
         } catch (IllegalAccessException ignored) {}
+    }
+
+    @VisibleForTesting
+    public FlutterView bindView(Context context, Field field) throws IllegalAccessException {
+        ensureFieldAccessible(field);
+        return bindView(context, field, (FlutterView) field.get(context));
+    }
+
+    @VisibleForTesting
+    public FlutterView bindView(Context context, String fieldName, FlutterView view) throws IllegalAccessException, NoSuchFieldException {
+        Field field = context.getClass().getDeclaredField(fieldName);
+        return bindView(context, field, view);
+    }
+
+    @VisibleForTesting
+    public FlutterView bindView(Context context, Field field, FlutterView view) throws IllegalAccessException {
+        ensureFieldAccessible(field);
+        if (field.get(context) == null) {
+            Class<FlutterView> ancestorClazz = FlutterView.class;
+            if (ancestorClazz.isAssignableFrom(field.getType())) {
+                if (view == null) {
+                    int index = 0;
+                    while (view == null && index < viewAnnotationPluginList.size()) {
+                        ViewAnnotationPlugin plugin = viewAnnotationPluginList.get(index++);
+                        view = plugin.convert(context, field);
+                    }
+                }
+                if (view != null) field.set(context, view);
+            }
+        }
+        return view;
     }
 
     /**
@@ -98,20 +118,82 @@ public class FlutterKnife {
                                  @NonNull FlutterView view,
                                  @NonNull ExecuteDartCode code,
                                  @Nullable EngineCallback callback) {
-        String engineId = code.engineId();
+        executeDartCode(activity, view, code.engineId(), code.pathToBundle(), code.initialRoute(), code.library(), code.entrypoint(), callback);
+    }
+
+    @VisibleForTesting
+    public void executeDartCode(@NonNull Context context,
+                                @NonNull FlutterView view,
+                                @NonNull String entrypoint,
+                                @Nullable EngineCallback callback) {
+        executeDartCode(context, view, "", entrypoint, callback);
+    }
+
+    @VisibleForTesting
+    public void executeDartCode(@NonNull Context context,
+                                @NonNull FlutterView view,
+                                @NonNull String engineId,
+                                @NonNull String entrypoint,
+                                @Nullable EngineCallback callback) {
+        executeDartCode(context, view, engineId, "", entrypoint, callback);
+    }
+
+    @VisibleForTesting
+    public void executeDartCode(@NonNull Context context,
+                                @NonNull FlutterView view,
+                                @NonNull String engineId,
+                                @NonNull String library,
+                                @NonNull String entrypoint,
+                                @Nullable EngineCallback callback) {
+        String pathToBundle = FlutterInjector.instance().flutterLoader().findAppBundlePath();
+        executeDartCode(context, view, engineId, pathToBundle, library, entrypoint, callback);
+    }
+
+    @VisibleForTesting
+    public void executeDartCode(@NonNull Context context,
+                                @NonNull FlutterView view,
+                                @NonNull String engineId,
+                                @NonNull String pathToBundle,
+                                @NonNull String library,
+                                @NonNull String entrypoint,
+                                @Nullable EngineCallback callback) {
+        executeDartCode(context, view, engineId, pathToBundle, "", library, entrypoint, callback);
+    }
+
+    /**
+     * 将一个FlutterEngine实例与FlutterView绑定，并执行指定的Dart入口方法
+     * @param context 上下文环境
+     * @param view FlutterView实例
+     * @param engineId FlutterEngine缓存ID，如果不为空将通过{@link FlutterEngineCache#get(String)}获取实例
+     * @param pathToBundle Dart代码所在目录
+     * @param initialRoute Flutter初始化路由名称
+     * @param library Dart入口代码包名
+     * @param entrypoint Dart入口方法名
+     * @param callback FlutterEngine初始化回调函数
+     * @deprecated initialRoute已失效，请使用${@link FlutterKnife#executeDartCode(Context, FlutterView, String, String, String, String, EngineCallback)}
+     */
+    @VisibleForTesting
+    @Deprecated
+    public void executeDartCode(@NonNull Context context,
+                                @NonNull FlutterView view,
+                                @NonNull String engineId,
+                                @NonNull String pathToBundle,
+                                @NonNull String initialRoute,
+                                @NonNull String library,
+                                @NonNull String entrypoint,
+                                @Nullable EngineCallback callback) {
         // 如果有engineId，则直接使用缓存的FlutterEngine实例，
         // 否则实例化一个新的FlutterEngine实例
         FlutterEngine engine;
-        boolean shouldDestroyEngine = false;
-        if (engineId.isEmpty() || !FlutterEngineCache.getInstance().contains(engineId)) {
+        boolean shouldDestroyEngine = engineId.isEmpty()
+                || !FlutterEngineCache.getInstance().contains(engineId);
+        if (shouldDestroyEngine) {
             if (engineGroup == null) engineGroup =
-                    new FlutterEngineGroup(activity.getApplicationContext());
-            String library = code.library();
-            DartExecutor.DartEntrypoint entrypoint = library.isEmpty()
-                    ? new DartExecutor.DartEntrypoint(code.pathToBundle(), code.entrypoint())
-                    : new DartExecutor.DartEntrypoint(code.pathToBundle(), library, code.entrypoint());
-            engine = engineGroup.createAndRunEngine(activity, entrypoint);
-            shouldDestroyEngine = true;
+                    new FlutterEngineGroup(context.getApplicationContext());
+            DartExecutor.DartEntrypoint entry = library.isEmpty()
+                    ? new DartExecutor.DartEntrypoint(pathToBundle, entrypoint)
+                    : new DartExecutor.DartEntrypoint(pathToBundle, library, entrypoint);
+            engine = engineGroup.createAndRunEngine(context, entry);
         } else {
             engine = FlutterEngineCache.getInstance().get(engineId);
         }
@@ -120,9 +202,13 @@ public class FlutterKnife {
             // FlutterEngine实例创建回调
             if (callback != null) callback.onEngineCreate(view, engine);
             // 注册生命周期监听函数
-            Lifecycle lifecycle = ((LifecycleOwner)activity).getLifecycle();
+            Lifecycle lifecycle = ((LifecycleOwner)context).getLifecycle();
             lifecycle.addObserver(new LifecycleObserver(engine, view, shouldDestroyEngine));
         }
+    }
+
+    private void ensureFieldAccessible(Field field) {
+        if (!field.isAccessible()) field.setAccessible(true);
     }
 
     private static final class Holder {

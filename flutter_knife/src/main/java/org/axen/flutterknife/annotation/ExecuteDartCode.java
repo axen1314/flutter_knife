@@ -18,6 +18,7 @@ public @interface ExecuteDartCode {
     /**
      * Flutter初始化路由，传空则默认使用“/”为初始化值
      */
+    @Deprecated
     String initialRoute() default "";
 
     /**

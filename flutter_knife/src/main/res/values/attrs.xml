@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="FlutterView">
+        <attr name="renderMode" format="enum">
+            <enum name="surface" value="0"/>
+            <enum name="texture" value="1"/>
+<!--            <enum name="image" value="2"/>-->
+        </attr>
+        <attr name="transparencyMode" format="enum">
+            <enum name="opaque" value="0" />
+            <enum name="transparent" value="1"/>
+        </attr>
+    </declare-styleable>
+</resources>

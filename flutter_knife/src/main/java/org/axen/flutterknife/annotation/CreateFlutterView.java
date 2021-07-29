@@ -8,8 +8,13 @@ import java.lang.annotation.Target;
 import io.flutter.embedding.android.RenderMode;
 import io.flutter.embedding.android.TransparencyMode;
 
+/**
+ * 为注解属性创建一个{@link io.flutter.embedding.android.FlutterView}实例
+ * @deprecated 请使用 {@link org.axen.flutterknife.view.FlutterView}
+ */
 @Target({ElementType.FIELD})
 @Retention(RetentionPolicy.RUNTIME)
+@Deprecated
 public @interface CreateFlutterView {
     /**
      * 渲染模式，分三种情况

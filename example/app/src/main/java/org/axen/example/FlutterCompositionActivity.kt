@@ -1,15 +1,15 @@
 package org.axen.example
 
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
 import android.util.TypedValue
+import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
-import io.flutter.embedding.android.FlutterView
 import org.axen.flutterknife.FlutterKnife
 import org.axen.flutterknife.annotation.BindFlutterView
 import org.axen.flutterknife.annotation.CreateFlutterView
 import org.axen.flutterknife.annotation.ExecuteDartCode
+import org.axen.flutterknife.view.FlutterView
 
 class FlutterCompositionActivity : AppCompatActivity() {
 
@@ -26,14 +26,14 @@ class FlutterCompositionActivity : AppCompatActivity() {
      * 绑定一个FlutterView
      */
     @BindFlutterView(R.id.bfv)
-    @ExecuteDartCode(entrypoint = "mine")
+    @ExecuteDartCode
     private lateinit var bfv: FlutterView
 
     /**
      * 创建一个FlutterView
      */
     @CreateFlutterView
-    @ExecuteDartCode(entrypoint = "info")
+    @ExecuteDartCode
     private lateinit var cfv: FlutterView
 
     override fun onCreate(savedInstanceState: Bundle?) {

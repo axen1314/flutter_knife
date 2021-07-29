@@ -1,4 +1,4 @@
-package org.axen.flutterknife.adapter;
+package org.axen.flutterknife.plugin;
 
 import android.content.Context;
 
@@ -8,11 +8,11 @@ import java.lang.reflect.ParameterizedType;
 
 import io.flutter.embedding.android.FlutterView;
 
-public abstract class AnnotationToFlutterViewAdapter<T extends Annotation> implements IAnnotationToFlutterViewAdapter {
-    public abstract FlutterView onConvert(Context context, T annotation);
+public abstract class AbstractViewAnnotationPlugin<T extends Annotation> implements ViewAnnotationPlugin {
+    public abstract FlutterView onConvert(Context context, Field field, T annotation);
     public FlutterView convert(Context context, Field field) {
         T annotation = field.getAnnotation(getTClass());
-        if (annotation != null) return onConvert(context, annotation);
+        if (annotation != null) return onConvert(context, field, annotation);
         return null;
     }
 
