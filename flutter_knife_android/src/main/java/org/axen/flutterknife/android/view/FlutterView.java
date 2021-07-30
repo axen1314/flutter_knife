@@ -4,6 +4,8 @@ import android.content.Context;
 import android.content.res.TypedArray;
 import android.util.AttributeSet;
 
+import androidx.annotation.NonNull;
+
 import org.axen.flutterknife.android.R;
 
 import java.lang.reflect.Field;
@@ -11,11 +13,18 @@ import java.lang.reflect.Field;
 import io.flutter.embedding.android.FlutterImageView;
 import io.flutter.embedding.android.FlutterSurfaceView;
 import io.flutter.embedding.android.FlutterTextureView;
+import io.flutter.embedding.engine.FlutterEngine;
+import io.flutter.plugin.common.MethodChannel;
 
 public class FlutterView extends io.flutter.embedding.android.FlutterView {
     private static final String SURFACE_FILED_NAME = "flutterSurfaceView";
     private static final String TEXTURE_FILED_NAME = "flutterSurfaceView";
     private static final String IMAGE_FILED_NAME = "flutterSurfaceView";
+
+    private static final String METHOD_CHANNEL_NAME = "org.axen.flutterknife";
+    private static final String METHOD_SET_ROUTE = "setRoute";
+
+    private MethodChannel mMethodChannel;
 
     public FlutterView(Context context) {
         super(context);
@@ -41,7 +50,7 @@ public class FlutterView extends io.flutter.embedding.android.FlutterView {
     private void init(Context context, AttributeSet attrs) {
         Class<?> clazz = getClass();
         TypedArray array = context.obtainStyledAttributes(attrs, R.styleable.FlutterView);
-        int renderMode = array.getInt(R.styleable.FlutterView_renderMode, 1);
+        int renderMode = array.getInt(R.styleable.FlutterView_renderMode, 0);
         try {
             Field field = clazz.getField(SURFACE_FILED_NAME);
             field.setAccessible(true);
@@ -72,4 +81,19 @@ public class FlutterView extends io.flutter.embedding.android.FlutterView {
         }
     }
 
+    @Override
+    public void attachToFlutterEngine(@NonNull FlutterEngine engine) {
+        super.attachToFlutterEngine(engine);
+        mMethodChannel = new MethodChannel(engine.getDartExecutor().getBinaryMessenger(), METHOD_CHANNEL_NAME);
+    }
+
+    @Override
+    public void detachFromFlutterEngine() {
+        super.detachFromFlutterEngine();
+        mMethodChannel = null;
+    }
+
+    public void setRoute(String route) {
+        mMethodChannel.invokeMethod(METHOD_SET_ROUTE, route);
+    }
 }

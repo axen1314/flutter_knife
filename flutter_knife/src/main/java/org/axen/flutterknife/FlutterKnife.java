@@ -38,8 +38,8 @@ public class FlutterKnife {
 
     public static FlutterKnife getInstance() { return Holder.INSTANCE; }
 
-    public void bind(@NonNull Activity activity) {
-        bind(activity, null);
+    public void bind(@NonNull Context context, @NonNull LifecycleOwner owner) {
+        bind(context, owner, null);
     }
 
     /**
@@ -47,27 +47,42 @@ public class FlutterKnife {
      * 或{@link org.axen.flutterknife.annotation.CreateFlutterView}注解的FlutterView属性
      * 为带有{@link ExecuteDartCode}注解的FlutterView属性绑定一个FlutterEngine实例，并执行Dart入口代码
      *
-     * 注意：FlutterKnife会注册一个{@link androidx.lifecycle.LifecycleObserver}进行声明周期监听
-     * 因此使用FlutterKnife进行FlutterView绑定的Activity必须实现{@link LifecycleOwner}
-     * 为了保证兼容，FlutterKnife提供了{@link org.axen.flutterknife.android.app.FlutterKnifeActivity}，
-     * 实现了{@link LifecycleOwner}接口并实现其生命周期回调
-     *
-     * @param activity FlutterView所在的上下文环境
+     * @param context FlutterView所在的上下文环境
+     * @param owner 组件生命周期回调
      * @param callback {@link EngineCallback}实例，回调创建的FlutterEngine实例
      */
-    public void bind(@NonNull Activity activity, @Nullable EngineCallback callback) {
+    public void bind(@NonNull Context context, @NonNull LifecycleOwner owner, @Nullable EngineCallback callback) {
         try {
-            Class<? extends Activity> clazz = activity.getClass();
+            Class<? extends Context> clazz = context.getClass();
             Field[] fields = clazz.getDeclaredFields();
             for(Field field : fields) {
-                FlutterView view = bindView(activity, field);
+                FlutterView view = bindView(context, field);
                 if (view != null) {// 根据ExecuteDartCode注解信息实例化FlutterEngine并执行Dart代码
                     ExecuteDartCode code = field.getAnnotation(ExecuteDartCode.class);
-                    if (code != null) executeDartCode(activity, view, code, callback);
+                    if (code != null) executeDartCode(context, owner, view, code, callback);
                 }
 
             }
         } catch (IllegalAccessException ignored) {}
+    }
+
+    @Deprecated
+    public void bind(@NonNull Activity activity) {
+        bind(activity, (LifecycleOwner) activity);
+    }
+
+    /**
+     * 初始化Activity内带有{@link org.axen.flutterknife.annotation.BindFlutterView}
+     * 或{@link org.axen.flutterknife.annotation.CreateFlutterView}注解的FlutterView属性
+     * 为带有{@link ExecuteDartCode}注解的FlutterView属性绑定一个FlutterEngine实例，并执行Dart入口代码
+     *
+     * @param activity FlutterView所在的上下文环境
+     * @param callback {@link EngineCallback}实例，回调创建的FlutterEngine实例
+     * @deprecated 该方法存在局限性，未来将被移除，请使用 {@link FlutterKnife#bind(Context, LifecycleOwner, EngineCallback)}代替
+     */
+    @Deprecated
+    public void bind(@NonNull Activity activity, @Nullable EngineCallback callback) {
+       bind(activity, (LifecycleOwner) activity, callback);
     }
 
     @VisibleForTesting
@@ -103,61 +118,62 @@ public class FlutterKnife {
 
     /**
      * 初始化FlutterEngine并执行Dart入口代码
+     * FlutterKnife会注册一个{@link androidx.lifecycle.LifecycleObserver}进行声明周期监听
      *
-     * 注意：FlutterKnife会注册一个{@link androidx.lifecycle.LifecycleObserver}进行声明周期监听
-     * 因此使用FlutterKnife进行FlutterView绑定的Activity必须实现{@link LifecycleOwner}
-     * 为了保证兼容，FlutterKnife提供了{@link org.axen.flutterknife.android.app.FlutterKnifeActivity}，
-     * 实现了{@link LifecycleOwner}接口并实现其生命周期回调
-     *
-     * @param activity FlutterView所在的上下文环境
+     * @param context FlutterView所在的上下文环境
      * @param view 需要绑定FlutterEngine的FlutterView
      * @param code {@link ExecuteDartCode}注解实例，包含了Dart入口代码的相关信息
      * @param callback {@link EngineCallback}实例，回调创建的FlutterEngine实例
      */
-    private void executeDartCode(@NonNull Activity activity,
+    private void executeDartCode(@NonNull Context context,
+                                 @NonNull LifecycleOwner owner,
                                  @NonNull FlutterView view,
                                  @NonNull ExecuteDartCode code,
                                  @Nullable EngineCallback callback) {
-        executeDartCode(activity, view, code.engineId(), code.pathToBundle(), code.initialRoute(), code.library(), code.entrypoint(), callback);
+        executeDartCode(context, owner, view, code.engineId(), code.pathToBundle(), code.library(), code.entrypoint(), callback);
     }
 
     @VisibleForTesting
     public void executeDartCode(@NonNull Context context,
+                                @NonNull LifecycleOwner owner,
                                 @NonNull FlutterView view,
                                 @NonNull String entrypoint,
                                 @Nullable EngineCallback callback) {
-        executeDartCode(context, view, "", entrypoint, callback);
+        executeDartCode(context, owner,view, "", entrypoint, callback);
     }
 
     @VisibleForTesting
     public void executeDartCode(@NonNull Context context,
+                                @NonNull LifecycleOwner owner,
                                 @NonNull FlutterView view,
                                 @NonNull String engineId,
                                 @NonNull String entrypoint,
                                 @Nullable EngineCallback callback) {
-        executeDartCode(context, view, engineId, "", entrypoint, callback);
+        executeDartCode(context, owner, view, engineId, "", entrypoint, callback);
     }
 
     @VisibleForTesting
     public void executeDartCode(@NonNull Context context,
+                                @NonNull LifecycleOwner owner,
                                 @NonNull FlutterView view,
                                 @NonNull String engineId,
                                 @NonNull String library,
                                 @NonNull String entrypoint,
                                 @Nullable EngineCallback callback) {
         String pathToBundle = FlutterInjector.instance().flutterLoader().findAppBundlePath();
-        executeDartCode(context, view, engineId, pathToBundle, library, entrypoint, callback);
+        executeDartCode(context, owner, view, engineId, pathToBundle, library, entrypoint, callback);
     }
 
     @VisibleForTesting
     public void executeDartCode(@NonNull Context context,
+                                @NonNull LifecycleOwner owner,
                                 @NonNull FlutterView view,
                                 @NonNull String engineId,
                                 @NonNull String pathToBundle,
                                 @NonNull String library,
                                 @NonNull String entrypoint,
                                 @Nullable EngineCallback callback) {
-        executeDartCode(context, view, engineId, pathToBundle, "", library, entrypoint, callback);
+        executeDartCode(context, owner, view, engineId, pathToBundle, "", library, entrypoint, callback);
     }
 
     /**
@@ -170,11 +186,12 @@ public class FlutterKnife {
      * @param library Dart入口代码包名
      * @param entrypoint Dart入口方法名
      * @param callback FlutterEngine初始化回调函数
-     * @deprecated initialRoute已失效，请使用${@link FlutterKnife#executeDartCode(Context, FlutterView, String, String, String, String, EngineCallback)}
+     * @deprecated initialRoute已失效，请使用${@link FlutterKnife#executeDartCode(Context, LifecycleOwner, FlutterView, String, String, String, String, EngineCallback)}
      */
     @VisibleForTesting
     @Deprecated
     public void executeDartCode(@NonNull Context context,
+                                @NonNull LifecycleOwner owner,
                                 @NonNull FlutterView view,
                                 @NonNull String engineId,
                                 @NonNull String pathToBundle,
@@ -202,7 +219,7 @@ public class FlutterKnife {
             // FlutterEngine实例创建回调
             if (callback != null) callback.onEngineCreate(view, engine);
             // 注册生命周期监听函数
-            Lifecycle lifecycle = ((LifecycleOwner)context).getLifecycle();
+            Lifecycle lifecycle = owner.getLifecycle();
             lifecycle.addObserver(new LifecycleObserver(engine, view, shouldDestroyEngine));
         }
     }

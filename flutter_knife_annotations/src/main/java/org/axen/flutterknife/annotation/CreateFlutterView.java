@@ -22,7 +22,7 @@ public @interface CreateFlutterView {
      * {@link RenderMode#texture}, 使用{@link io.flutter.embedding.android.FlutterTextureView}渲染页面
      * {@link RenderMode#surface}, 使用{@link io.flutter.embedding.android.FlutterSurfaceView}渲染页面
      */
-    RenderMode renderMode() default RenderMode.texture;
+    RenderMode renderMode() default RenderMode.surface;
 
     /**
      * 背景渲染默认，仅在使用{@link RenderMode#surface}的情况下生效

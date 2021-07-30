@@ -1,6 +1,7 @@
 package org.axen.flutterknife.example
 
 import android.app.Application
+import io.flutter.embedding.engine.FlutterEngineGroup
 
 class MainApplication: Application() {
     companion object {
@@ -23,10 +24,13 @@ class MainApplication: Application() {
 //        const val ENGINE_ID_16:String = "ENGINE16"
 //        const val ENGINE_ID_17:String = "ENGINE17"
 //        const val ENGINE_ID_18:String = "ENGINE18"
+        var engineGroup: FlutterEngineGroup? = null
     }
 
     override fun onCreate() {
         super.onCreate()
+        engineGroup = FlutterEngineGroup(this)
+        engineGroup!!.createAndRunDefaultEngine(this)
 //        val engineGroup = FlutterEngineGroup(this)
 //        val engine = engineGroup.createAndRunDefaultEngine(this)
 //        val engine1 = engineGroup.createAndRunDefaultEngine(this)
