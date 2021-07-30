@@ -49,7 +49,7 @@ public class FlutterKnife {
      *
      * 注意：FlutterKnife会注册一个{@link androidx.lifecycle.LifecycleObserver}进行声明周期监听
      * 因此使用FlutterKnife进行FlutterView绑定的Activity必须实现{@link LifecycleOwner}
-     * 为了保证兼容，FlutterKnife提供了{@link org.axen.flutterknife.ui.FlutterKnifeActivity}，
+     * 为了保证兼容，FlutterKnife提供了{@link org.axen.flutterknife.android.app.FlutterKnifeActivity}，
      * 实现了{@link LifecycleOwner}接口并实现其生命周期回调
      *
      * @param activity FlutterView所在的上下文环境
@@ -106,7 +106,7 @@ public class FlutterKnife {
      *
      * 注意：FlutterKnife会注册一个{@link androidx.lifecycle.LifecycleObserver}进行声明周期监听
      * 因此使用FlutterKnife进行FlutterView绑定的Activity必须实现{@link LifecycleOwner}
-     * 为了保证兼容，FlutterKnife提供了{@link org.axen.flutterknife.ui.FlutterKnifeActivity}，
+     * 为了保证兼容，FlutterKnife提供了{@link org.axen.flutterknife.android.app.FlutterKnifeActivity}，
      * 实现了{@link LifecycleOwner}接口并实现其生命周期回调
      *
      * @param activity FlutterView所在的上下文环境
