@@ -11,7 +11,12 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/example" />
             <option value="$PROJECT_DIR$/flutter_knife" />
+            <option value="$PROJECT_DIR$/flutter_knife_android" />
+            <option value="$PROJECT_DIR$/flutter_knife_annotations" />
+            <option value="$PROJECT_DIR$/flutter_knife_compiler" />
+            <option value="$PROJECT_DIR$/flutter_module/.android/Flutter" />
           </set>
         </option>
         <option name="resolveModulePerSourceSet" value="false" />

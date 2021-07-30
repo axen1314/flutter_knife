@@ -1,1 +1,10 @@
 include ':flutter_knife'
+include ':flutter_knife_annotations'
+include ':flutter_knife_compiler'
+include ':flutter_knife_android'
+include ':example'
+setBinding(new Binding([gradle: this]))
+evaluate(new File(
+        settingsDir,
+        'flutter_module/.android/include_flutter.groovy'
+))
